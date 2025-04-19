@@ -331,7 +331,9 @@ Using with curl:
     top_n = args.top
 
     if not os.path.isdir(target_dir):
-        print(f"{V} Error: Directory not found: {target_dir} {V}".ljust(width - 1) + V, file=sys.stderr)
+        # Ensure error message fits within the box correctly
+        error_message = f" Error: Directory not found: {target_dir}"
+        print(f"{V}{error_message.ljust(width - 2)}{V}", file=sys.stderr)
         print(f"{BL}{H * (width - 2)}{BR}", file=sys.stderr)
         sys.exit(1)
 
@@ -377,16 +379,22 @@ Using with curl:
         # Clear any leftover progress line
         sys.stdout.write(f"\r{' ':<{width}}\r")
         sys.stdout.flush()
-        # Add emoji to interrupt message
-        print(f"\n{V} 🛑 Scan interrupted by user. {V}".center(width + 1), file=sys.stderr)
+        # Ensure interrupt message fits within the box correctly
+        interrupt_message = " 🛑 Scan interrupted by user. "
+        print(f"\n{V}{interrupt_message.ljust(width - 2)}{V}", file=sys.stderr) # Use ljust for consistency
         print(f"{BL}{H * (width - 2)}{BR}", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
         # Clear any leftover progress line
         sys.stdout.write(f"\r{' ':<{width}}\r")
         sys.stdout.flush()
-        # Add emoji to error message
-        print(f"\n{V} ⚠️ An unexpected error occurred: {e} {V}".ljust(width -1) + V, file=sys.stderr)
+        # Ensure error message fits within the box correctly
+        error_message = f" ⚠️ An unexpected error occurred: {e}"
+        # Truncate error message if it's too long to fit
+        max_err_len = width - 4 # Account for V, space, V
+        if len(error_message) > max_err_len:
+            error_message = error_message[:max_err_len-3] + "..."
+        print(f"\n{V}{error_message.ljust(width - 2)}{V}", file=sys.stderr)
         print(f"{BL}{H * (width - 2)}{BR}", file=sys.stderr)
         sys.exit(1)
 
