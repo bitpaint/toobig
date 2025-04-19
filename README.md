@@ -11,6 +11,7 @@ curl -sSL https://raw.githubusercontent.com/bitpaint/toobig/main/toobig.py | pyt
 ```
 
 This will scan the current directory (`.`) and show the top 5 largest files.
+
 (See **Usage & Options** below for more customization.)
 
 ---
