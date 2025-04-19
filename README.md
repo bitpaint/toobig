@@ -1,12 +1,12 @@
-# 🚀 TooBig: Find Your Chunky Files 🚀
+# 🚀 TooBig: Find Your Chunky Code Files 🚀
 
-Ever feel like your codebase is getting a bit... *chonky*? `toobig.py` is here to help you vibe check your project and spot those hefty files that might need a little refactoring love. ✨
+Ever feel like your codebase is getting a bit... *chonky*? `toobig.py` is here to help you vibe check your project and spot those hefty **code files** that might need a little refactoring love. ✨
 
-It scans your current directory, counts up the text files, lines, and characters, and points out the biggest bois. Keep your code lean and mean! 💪
+It intelligently scans your current directory (while skipping common non-code directories like `node_modules`, `.git`, `build`, etc., and ignoring binary files, images, archives, etc.), counts up the relevant text files, lines, and characters, and points out the biggest bois. Keep your code lean and mean! 💪
 
 ## 🤔 Why?
 
-Big files can be a drag. They're harder to read, harder to maintain, and just generally mess with the coding flow. `toobig.py` helps you identify potential candidates for splitting into smaller, more manageable pieces. Keep it modular, keep it cool. 😎
+Big source code files can be a drag. They're harder to read, harder to maintain, and just generally mess with the coding flow. `toobig.py` helps you identify potential candidates for splitting into smaller, more manageable pieces. Keep it modular, keep it cool. 😎
 
 ## ✨ How to Use
 
@@ -16,6 +16,14 @@ It's super simple! Just curl the script directly from the repo and run it with P
 curl -sSL https://raw.githubusercontent.com/bitpaint/toobig/main/toobig.py | python3
 ```
 
+## 🧠 What it Skips
+
+To keep things fast and relevant, `toobig.py` skips:
+
+*   **Common Directories:** `.git`, `node_modules`, `venv`, `__pycache__`, `build`, `dist`, `target`, `.vscode`, `.idea`, and more.
+*   **Non-Code Files:** Images (`.png`, `.jpg`...), archives (`.zip`, `.tar`...), binaries (`.exe`, `.dll`...), compiled code (`.pyc`, `.class`...), documents (`.pdf`, `.docx`...), media (`.mp4`, `.mp3`...), fonts, logs, and minified files (`.min.js`, `.min.css`).
+
+This focuses the analysis on the files you're most likely to edit and refactor.
 
 ## 📊 Example Output
 
