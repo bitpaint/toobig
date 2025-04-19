@@ -16,12 +16,6 @@ It's super simple! Just curl the script directly from the repo and run it with P
 curl -sSL https://raw.githubusercontent.com/bitpaint/toobig/main/toobig.py | python3
 ```
 
-Alternatively, clone the repo and run it:
-```bash
-git clone https://github.com/bitpaint/toobig.git
-cd toobig
-python3 toobig.py
-```
 
 ## 📊 Example Output
 
