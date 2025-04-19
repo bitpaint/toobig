@@ -30,6 +30,7 @@ DEFAULT_EXCLUDED_DIRS = {
     '.next', '.nuxt',
     # Lock Files (add specific filenames here)
     'package-lock.json', 'yarn.lock', 'composer.lock', 'Gemfile.lock', 'Pipfile.lock', 'poetry.lock',
+    'mix.lock', # Elixir lock file
 }
 
 DEFAULT_EXCLUDED_EXTENSIONS = {
@@ -42,7 +43,11 @@ DEFAULT_EXCLUDED_EXTENSIONS = {
     '.mp3', '.mp4', '.avi', '.mov', '.wav', '.flac', '.ogg', '.mkv',
     '.woff', '.woff2', '.eot', '.ttf', '.otf',
     # Minified files (often large but not primary source)
-    '.min.js', '.min.css'
+    '.min.js', '.min.css',
+    # Data files
+    '.csv', '.tsv', '.sql',
+    # Notebooks
+    '.ipynb',
 }
 
 # Box drawing characters
