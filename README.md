@@ -2,6 +2,19 @@
 
 [![Python 3.6+](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/release/python-360/)
 
+## 🚀 Quick Start
+
+No installation needed! Just pipe it directly from GitHub using `curl` in the root of your project directory:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/bitpaint/toobig/main/toobig.py | python3
+```
+
+This will scan the current directory (`.`) and show the top 5 largest files.
+(See **Usage & Options** below for more customization.)
+
+---
+
 Ever feel like your codebase is getting a bit... *chonky*? `toobig.py` is a lightweight, zero-dependency Python script to help you vibe check your project and spot those hefty **code files** that might need a little refactoring love. ✨
 
 It intelligently scans your directory, skipping common non-code directories (`node_modules`, `.git`, `build`, etc.) and file types (binaries, images, archives), counts up the relevant text files, lines, and characters, and points out the biggest offenders. Keep your code lean and mean! 💪
@@ -14,18 +27,9 @@ Large source code files can be a drag. They're harder to read, harder to maintai
 
 *   **Fast Scan:** Intelligently skips irrelevant directories and file types.
 *   **Zero Dependencies:** Runs anywhere with Python 3.6+ installed.
+*   **Respects `.gitignore`:** Automatically ignores files and directories listed in your `.gitignore` (can be disabled with `--no-gitignore`).
 *   **Configurable:** Use command-line arguments to customize behavior.
-*   **Clear Output:** Shows total counts and highlights the largest files by size (KB/MB).
-
-## 🚀 Quick Start
-
-No installation needed! Just pipe it directly from GitHub using `curl` in the root of your project directory:
-
-```bash
-curl -sSL https://raw.githubusercontent.com/bitpaint/toobig/main/toobig.py | python3
-```
-
-This will scan the current directory (`.`) and show the top 5 largest files.
+*   **Clear Output:** Shows total counts and highlights the largest files by size (KB/MB) in a clean, boxed format.
 
 ## ⚙️ Usage & Options
 
@@ -33,10 +37,11 @@ You can pass arguments directly after `python3 --` when using the `curl` method,
 
 ```bash
 # Pipe arguments via curl
-curl -sSL .../toobig.py | python3 -- [options] [directory]
+curl -sSL https://raw.githubusercontent.com/bitpaint/toobig/main/toobig.py | python3 -- [options] [directory]
 
 # Or save and run
-python toobig.py [options] [directory]
+# wget https://raw.githubusercontent.com/bitpaint/toobig/main/toobig.py
+# python toobig.py [options] [directory]
 ```
 
 **Available Options:**
@@ -45,6 +50,7 @@ python toobig.py [options] [directory]
 *   `--top N`: Show the top `N` largest files (default: `5`).
 *   `--exclude-dirs PAT1,PAT2,...`: Comma-separated list of *additional* directory name patterns to exclude (e.g., `my_build_artifacts,temp*`). Uses simple `fnmatch` patterns.
 *   `--exclude-exts .ext1,.ext2,...`: Comma-separated list of *additional* file extensions to exclude (must include the leading dot, e.g., `.log,.tmp`).
+*   `--no-gitignore`: Do not read or respect `.gitignore` files.
 *   `-v`, `--verbose`: Show potentially binary/unreadable files that are skipped during the scan.
 *   `-h`, `--help`: Show the help message and exit.
 
@@ -52,13 +58,16 @@ python toobig.py [options] [directory]
 
 ```bash
 # Scan './src' directory, show top 10 files
-curl -sSL .../toobig.py | python3 -- --top 10 ./src
+curl -sSL https://raw.githubusercontent.com/bitpaint/toobig/main/toobig.py | python3 -- --top 10 ./src
 
 # Scan current dir, exclude logs and temp files, show skipped files
-curl -sSL .../toobig.py | python3 -- --exclude-exts .log,.tmp -v
+curl -sSL https://raw.githubusercontent.com/bitpaint/toobig/main/toobig.py | python3 -- --exclude-exts .log,.tmp -v
 
 # Scan current dir, also exclude any 'cache' directories
-curl -sSL .../toobig.py | python3 -- --exclude-dirs cache
+curl -sSL https://raw.githubusercontent.com/bitpaint/toobig/main/toobig.py | python3 -- --exclude-dirs cache
+
+# Scan current dir, but ignore the .gitignore file
+curl -sSL https://raw.githubusercontent.com/bitpaint/toobig/main/toobig.py | python3 -- --no-gitignore
 ```
 
 ## 🧠 What it Skips By Default

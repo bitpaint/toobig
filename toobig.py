@@ -28,6 +28,8 @@ DEFAULT_EXCLUDED_DIRS = {
     # Other common build/cache
     'buck-out', '.metals', '.bloop', 'site-packages',
     '.next', '.nuxt',
+    # Lock Files (add specific filenames here)
+    'package-lock.json', 'yarn.lock', 'composer.lock', 'Gemfile.lock', 'Pipfile.lock', 'poetry.lock',
 }
 
 DEFAULT_EXCLUDED_EXTENSIONS = {
@@ -166,11 +168,15 @@ def count_files_and_lines(directory, excluded_dirs, excluded_extensions, gitigno
             rel_file_path = os.path.join(rel_root, file).replace('\\', '/') # Use forward slashes
             _, ext = os.path.splitext(file)
 
-            # 1. Check hardcoded excluded extensions
+            # 1. Check hardcoded excluded filenames/patterns (like package-lock.json)
+            if any(fnmatch.fnmatch(file, pattern) for pattern in excluded_dirs):
+                continue
+
+            # 2. Check hardcoded excluded extensions
             if ext.lower() in excluded_extensions:
                 continue
 
-            # 2. Check .gitignore patterns (match against relative path)
+            # 3. Check .gitignore patterns (match against relative path)
             is_gitignored = False
             for pattern in gitignore_patterns:
                 if fnmatch.fnmatch(rel_file_path, pattern):
@@ -213,11 +219,13 @@ def count_files_and_lines(directory, excluded_dirs, excluded_extensions, gitigno
 def display_largest_files(file_details, top_n=5, width=80):
     """Display the top 'n' largest files in a formatted box."""
     if not file_details:
-        print(f"{V} 🤔 No files found matching criteria. {V}".ljust(width - 1) + V)
+        no_files_text = "🤔 No files found matching criteria."
+        print(f"{V}{no_files_text:<{width - 2}}{V}")
         return
 
-    # Add emoji to top files header
-    print(f"{V} 🏆 Top {top_n} Largest Files by Size 🏆 {V}".center(width))
+    # Correct alignment for top files header
+    top_files_title = f"🏆 Top {top_n} Largest Files by Size 🏆"
+    print(f"{V}{top_files_title.center(width - 2)}{V}")
     print(f"{LC}{H * (width - 2)}{RC}")
 
     # Sort the files by size, from largest to smallest
@@ -295,7 +303,6 @@ Using with curl:
     print() # Add newline after banner + link
 
     # --- Title --- 
-    # print() # No longer needed, newline added after art
     print_boxed_title("🚀 File Analyzer 🚀", width=width)
 
     # --- Setup Exclusions --- 
@@ -326,9 +333,17 @@ Using with curl:
     # --- Run Analysis --- 
     try:
         abs_target_dir = os.path.abspath(target_dir)
-        # Add emojis to info section
-        print(f"{V} 🔍 Analyzing: {abs_target_dir:<{width - 16}}{V}")
-        print(f"{V}   Ignoring .gitignore: {'Yes' if args.no_gitignore else 'No'}{V}".rjust(width - 1))
+        # Ensure path doesn't overflow the box
+        max_path_len = width - 19 # Account for text, emoji, borders
+        display_path = abs_target_dir
+        if len(display_path) > max_path_len:
+            display_path = "..." + display_path[-(max_path_len - 3):]
+
+        # Correct alignment for info section
+        analyze_text = f" 🔍 Analyzing: {display_path}"
+        print(f"{V}{analyze_text:<{width - 2}}{V}")
+        ignore_text = f"   Ignoring .gitignore: {'Yes' if args.no_gitignore else 'No'}"
+        print(f"{V}{ignore_text:<{width - 2}}{V}")
         print(f"{LC}{H * (width - 2)}{RC}")
 
         total_files, total_lines, total_chars, file_details = count_files_and_lines(
@@ -336,8 +351,9 @@ Using with curl:
         )
 
         # --- Display Results --- 
-        # Add emojis to results section
-        print(f"{V}📊 Analysis Results {V}".center(width))
+        # Correct alignment for results header
+        results_title = "📊 Analysis Results 📊"
+        print(f"{V}{results_title.center(width - 2)}{V}")
         print(f"{LC}{H * (width - 2)}{RC}")
         results_line1 = f" 📄 Files Analyzed: {total_files}"
         results_line2 = f" 📏 Total Lines: {total_lines}"
