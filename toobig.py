@@ -3,69 +3,84 @@
 import os
 import sys
 import fnmatch
-import argparse # Add argparse for command-line arguments
+import argparse
 
-# Directories common in various projects that should be excluded (default set)
+# --- Constants ---
 DEFAULT_EXCLUDED_DIRS = {
-    '.git', 'node_modules', 'venv', '.venv', 'env', '.env',
-    '__pycache__', 'build', 'dist', 'target', '.vscode', '.idea',
-    '*.egg-info', '.metals', '.bloop', 'site-packages', 'deps',
-    '_build', 'buck-out', '.next', '.nuxt', 'out', '.terraform',
-    'vendor' # Added common vendor dirs
+    # Version Control & Config
+    '.git', '.hg', '.svn',
+    # IDE/Editor
+    '.vscode', '.idea', '.vs',
+    # Language Specific Artifacts
+    '__pycache__', '*.pyc', '*.pyo', '*.egg-info', '*.class', '*.jar', '*.war', '*.ear', '.gradle',
+    'target', # Java/Scala/Rust
+    'node_modules', 'bower_components', '.npm', '.yarn',
+    'vendor', # Go/PHP/Ruby
+    '_build', # Elixir/Erlang
+    'deps', # Elixir/Erlang
+    'build', 'dist', 'out', # General build outputs
+    # Virtual Environments
+    'venv', '.venv', 'env', '.env',
+    # OS Specific
+    '.DS_Store', 'Thumbs.db',
+    # Terraform
+    '.terraform',
+    # Other common build/cache
+    'buck-out', '.metals', '.bloop', 'site-packages',
+    '.next', '.nuxt',
 }
 
-# File extensions typically representing non-source code (default set)
 DEFAULT_EXCLUDED_EXTENSIONS = {
-    # Images
+    # Common Binary/Non-code formats
     '.png', '.jpg', '.jpeg', '.gif', '.bmp', '.tiff', '.ico', '.webp', '.svg',
-    # Archives
     '.zip', '.tar', '.gz', '.rar', '.7z', '.tgz',
-    # Binary/Executables
-    '.exe', '.dll', '.so', '.o', '.a', '.lib', '.dylib', '.app',
-    # Compiled Code / Intermediates
-    '.class', '.pyc', '.jar', '.war', '.ear', '.obj', '.bin',
-    # Documents / Data Formats (often large or binary)
+    '.exe', '.dll', '.so', '.o', '.a', '.lib', '.dylib', '.app', '.obj', '.bin',
     '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx', '.odt', '.ods', '.odp',
-    '.sqlite', '.db', '.mdb', '.log', # Moved log here
-    # Media
+    '.sqlite', '.db', '.mdb', '.log', '.lock',
     '.mp3', '.mp4', '.avi', '.mov', '.wav', '.flac', '.ogg', '.mkv',
-    # Fonts
     '.woff', '.woff2', '.eot', '.ttf', '.otf',
-    # Other
-    '.lock', '.DS_Store', '.min.js', '.min.css' # Exclude minified files
+    # Minified files (often large but not primary source)
+    '.min.js', '.min.css'
 }
 
-def is_excluded(path, root):
-    """Check if a file or directory should be excluded based on configured patterns."""
-    rel_path = os.path.relpath(path, root)
-    path_parts = rel_path.split(os.sep)
+# Box drawing characters
+TL, TR, BL, BR, H, V, LC, RC = '┌', '┐', '└', '┘', '─', '│', '├', '┤'
 
-    # Check directory patterns
-    for part in path_parts[:-1]: # Check parent directories
-        if any(fnmatch.fnmatch(part, pattern) for pattern in EXCLUDED_DIRS):
-            return True
+# --- Helper Functions ---
 
-    # Check file extension
-    _, ext = os.path.splitext(path)
-    if ext.lower() in EXCLUDED_EXTENSIONS:
-        return True
-
-    # Check filename itself for exclusion patterns (like *.egg-info which acts like a dir)
-    filename = path_parts[-1]
-    if any(fnmatch.fnmatch(filename, pattern) for pattern in EXCLUDED_DIRS):
-         return True # Handle cases like *.egg-info treated as files/dirs
-
-    return False
-
-def is_text_file(file_path):
-    """Determine if a file is a text file."""
+def parse_gitignore(gitignore_path):
+    """Parses a .gitignore file and returns a list of patterns."""
+    patterns = []
+    if not os.path.exists(gitignore_path):
+        return patterns
     try:
-        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-            # Try reading the start of the file to check if it contains text
-            f.read(1024)
-        return True
-    except (UnicodeDecodeError, IOError):
-        return False
+        with open(gitignore_path, 'r', encoding='utf-8', errors='ignore') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    # Basic handling: treat as fnmatch pattern
+                    # Doesn't handle negation (!) or complex path rules perfectly
+                    patterns.append(line)
+    except Exception as e:
+        print(f"\nWarning: Could not read or parse .gitignore: {e}", file=sys.stderr)
+    return patterns
+
+def format_size(size_bytes):
+    """Formats size in bytes to KB or MB."""
+    size_kb = size_bytes / 1024
+    if size_kb >= 1024:
+        return f"{size_kb / 1024:.2f} MB"
+    else:
+        return f"{size_kb:.2f} KB"
+
+def print_boxed_title(title, width=80):
+    """Prints a centered title within a box."""
+    print(f"{TL}{H * (width - 2)}{TR}")
+    print(f"{V}{title.center(width - 2)}{V}")
+    print(f"{LC}{H * (width - 2)}{RC}")
+
+
+# --- Core Logic ---
 
 def count_file_details(file_path):
     """Count the lines and characters of a file.
@@ -98,87 +113,149 @@ def count_file_details(file_path):
         # print(f"Unable to read file {file_path}: {e}") # Optional debug
         return 0, 0 # Indicate failure
 
-def count_files_and_lines(directory, excluded_dirs, excluded_extensions, verbose=False):
-    """Count the number of relevant files, lines of text, and characters in a directory."""
+def count_files_and_lines(directory, excluded_dirs, excluded_extensions, gitignore_patterns, verbose=False):
+    """Count relevant files, lines, and chars, respecting exclusions and .gitignore."""
     total_files = 0
     total_lines = 0
     total_chars = 0
     file_details = []
-    processed_files = 0
-    start_dir = directory # Remember the starting directory for exclusion checks
+    start_dir = os.path.abspath(directory)
+    width = 80 # For progress message padding
 
-    # Walk through all files in the directory
+    # Pre-compile gitignore patterns for efficiency if needed (simple fnmatch doesn't need it)
+
     for root, dirs, files in os.walk(directory, topdown=True):
-        # --- Filtering ---
-        # Filter directories in-place to prevent descending into them
-        original_dirs = list(dirs) # Copy before modifying
-        # Use the passed-in exclusion set
-        dirs[:] = [d for d in original_dirs if not any(fnmatch.fnmatch(d, pattern) for pattern in excluded_dirs)]
+        abs_root = os.path.abspath(root)
+        rel_root = os.path.relpath(abs_root, start_dir)
+        if rel_root == '.':
+            rel_root = '' # Root directory relative path is empty
 
-        # Print progress: current directory being scanned
-        progress_message = f"Scanning: {os.path.relpath(root, start_dir)}"
-        sys.stdout.write(f"\r{progress_message:<80}")
+        # --- Filtering Directories ---
+        original_dirs = list(dirs)
+        dirs[:] = [] # Clear dirs and selectively add back allowed ones
+        for d in original_dirs:
+            abs_dir_path = os.path.join(abs_root, d)
+            rel_dir_path = os.path.join(rel_root, d).replace('\\', '/') # Use forward slashes for matching
+
+            # 1. Check hardcoded excluded dir names/patterns
+            if any(fnmatch.fnmatch(d, pattern) for pattern in excluded_dirs):
+                continue
+
+            # 2. Check .gitignore patterns (match against relative path)
+            is_gitignored = False
+            for pattern in gitignore_patterns:
+                # Match directory itself or pattern ending with /
+                if fnmatch.fnmatch(rel_dir_path, pattern) or \
+                   (pattern.endswith('/') and fnmatch.fnmatch(rel_dir_path, pattern.rstrip('/'))):
+                   is_gitignored = True
+                   break
+            if is_gitignored:
+                continue
+
+            # If not excluded, add back to dirs for os.walk to descend
+            dirs.append(d)
+
+        # --- Progress Update ---
+        progress_message = f"⏳ Scanning: {rel_root or '.'}" # Added hourglass
+        sys.stdout.write(f"\r{progress_message:<{width}}")
         sys.stdout.flush()
 
+        # --- Filtering Files ---
         for file in files:
-            file_path = os.path.join(root, file)
+            abs_file_path = os.path.join(abs_root, file)
+            rel_file_path = os.path.join(rel_root, file).replace('\\', '/') # Use forward slashes
             _, ext = os.path.splitext(file)
 
-            # --- Exclusion Check ---
-            # Check extension first (quick)
-            if ext.lower() in excluded_extensions: # Use the passed-in exclusion set
+            # 1. Check hardcoded excluded extensions
+            if ext.lower() in excluded_extensions:
+                continue
+
+            # 2. Check .gitignore patterns (match against relative path)
+            is_gitignored = False
+            for pattern in gitignore_patterns:
+                if fnmatch.fnmatch(rel_file_path, pattern):
+                    is_gitignored = True
+                    break
+            if is_gitignored:
                 continue
 
             # --- Process File ---
-            # We attempt to count details, assuming it *might* be text.
-            # count_file_details handles errors gracefully if it's binary.
-            num_lines, num_chars = count_file_details(file_path)
-            # Only count files that could be successfully read (num_lines > 0 or num_chars > 0 implies success)
-            # Or count files that are 0 bytes (empty files are valid)
-            if num_lines > 0 or num_chars > 0 or os.path.getsize(file_path) == 0:
-                 if num_lines == 0 and num_chars == 0 and os.path.getsize(file_path) > 0:
-                     # If reading failed (returned 0,0) but size > 0, likely binary - skip.
-                     if verbose:
-                         print(f"\rSkipping likely binary/unreadable file: {file_path:<70}")
-                     continue
+            try:
+                file_size = os.path.getsize(abs_file_path)
+                num_lines, num_chars = count_file_details(abs_file_path)
 
-                 total_files += 1
-                 total_lines += num_lines
-                 total_chars += num_chars
-                 file_size = os.path.getsize(file_path) # Get size directly
-                 file_details.append((file_path, file_size, num_lines, num_chars))
-                 processed_files += 1
+                # Check if reading failed but file has size (likely binary/unreadable)
+                if num_lines == 0 and num_chars == 0 and file_size > 0:
+                    if verbose:
+                        # Clear progress line before printing skip message
+                        sys.stdout.write(f"\r{' ':<{width}}\r")
+                        print(f"❓ Skipping likely binary/unreadable: {rel_file_path}") # Added question mark emoji
+                        # Reprint progress line
+                        sys.stdout.write(f"\r{progress_message:<{width}}")
+                        sys.stdout.flush()
+                    continue
 
+                # Count valid text files (including empty ones)
+                total_files += 1
+                total_lines += num_lines
+                total_chars += num_chars
+                file_details.append((rel_file_path, file_size, num_lines, num_chars))
+
+            except OSError:
+                # Ignore files that might disappear during scan or have permission issues
+                continue
 
     # Clear the progress line before printing results
-    sys.stdout.write("\r" + " " * 80 + "\r")
+    sys.stdout.write(f"\r{' ':<{width}}\r")
     sys.stdout.flush()
     return total_files, total_lines, total_chars, file_details
 
-def display_largest_files(file_details, top_n=5):
-    """Display the top 'n' largest files with their line and character counts."""
+def display_largest_files(file_details, top_n=5, width=80):
+    """Display the top 'n' largest files in a formatted box."""
+    if not file_details:
+        print(f"{V} 🤔 No files found matching criteria. {V}".ljust(width - 1) + V)
+        return
+
+    # Add emoji to top files header
+    print(f"{V} 🏆 Top {top_n} Largest Files by Size 🏆 {V}".center(width))
+    print(f"{LC}{H * (width - 2)}{RC}")
+
     # Sort the files by size, from largest to smallest
     sorted_files = sorted(file_details, key=lambda x: x[1], reverse=True)[:top_n]
 
-    print(f"Top {top_n} Largest Files:")
-    print('-' * 60)
-
     for idx, (file_path, file_size, num_lines, num_chars) in enumerate(sorted_files, start=1):
-        print(f"#{idx} {file_path}")
-        # Format size nicely (KB or MB)
-        size_kb = file_size / 1024
-        if size_kb > 1024:
-            print(f"Size: {size_kb / 1024:.2f} MB")
-        else:
-            print(f"Size: {size_kb:.2f} KB")
-        print(f"Lines: {num_lines}")
-        print(f"Characters: {num_chars}")
-        print('-' * 60)
+        size_str = format_size(file_size)
+        # Add file emoji
+        line1 = f" #{idx} 📁 {file_path}"
+        line2 = f"    Size: {size_str} | Lines: {num_lines} | Chars: {num_chars}"
+
+        print(f"{V}{line1:<{width - 2}}{V}")
+        print(f"{V}{line2:<{width - 2}}{V}")
+        if idx < len(sorted_files):
+             print(f"{LC}{H * (width - 2)}{RC}") # Separator
+
+
+# --- Main Execution ---
+
+ASCII_ART = [
+    "  ┌┬┐┌─┐┌─┐  ┌┐ ┬┌─┐",
+    "   │ │ ││ │  ├┴┐││ ┬",
+    "   ┴ └─┘└─┘  └─┘┴└─┘"
+]
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Analyze code file sizes in a directory, excluding common non-code files/dirs.",
-        epilog="Example: python toobig.py --top 10 --exclude-exts .log,.tmp --exclude-dirs my_data_dir"
+        description="Find the largest text files in a directory, respecting .gitignore.",
+        formatter_class=argparse.RawTextHelpFormatter, # Keep formatting in help
+        epilog='''\ 
+Examples:
+  python toobig.py                 # Scan current dir, show top 5
+  python toobig.py --top 10 ./src  # Scan ./src, show top 10
+  python toobig.py --exclude-exts .log,.tmp -v # Exclude more, be verbose
+
+Using with curl:
+  curl -sSL .../toobig.py | python3 -- --top 10
+'''
     )
     parser.add_argument(
         'directory', nargs='?', default=os.getcwd(),
@@ -190,11 +267,15 @@ def main():
     )
     parser.add_argument(
         '--exclude-dirs', type=str, default='',
-        help="Comma-separated list of additional directory patterns to exclude"
+        help="Comma-separated list of additional directory patterns to exclude (fnmatch)"
     )
     parser.add_argument(
         '--exclude-exts', type=str, default='',
-        help="Comma-separated list of additional file extensions (starting with '.') to exclude"
+        help="Comma-separated list of additional file extensions (e.g., .log,.tmp)"
+    )
+    parser.add_argument(
+        '--no-gitignore', action='store_true',
+        help="Do not read or respect .gitignore files"
     )
     parser.add_argument(
         '-v', '--verbose', action='store_true',
@@ -202,48 +283,90 @@ def main():
     )
 
     args = parser.parse_args()
+    width = 80 # Define output width
 
-    # Combine default and user-provided exclusions
+    # --- ASCII Art Banner ---
+    print() # Add newline before banner
+    for line in ASCII_ART:
+        print(line.center(width)) # Center the art
+    # Add the repository link underneath, also centered
+    repo_link = "https://github.com/bitpaint/toobig"
+    print(repo_link.center(width))
+    print() # Add newline after banner + link
+
+    # --- Title --- 
+    # print() # No longer needed, newline added after art
+    print_boxed_title("🚀 File Analyzer 🚀", width=width)
+
+    # --- Setup Exclusions --- 
     excluded_dirs = DEFAULT_EXCLUDED_DIRS.copy()
     if args.exclude_dirs:
         excluded_dirs.update(d.strip() for d in args.exclude_dirs.split(',') if d.strip())
 
     excluded_extensions = DEFAULT_EXCLUDED_EXTENSIONS.copy()
     if args.exclude_exts:
-        # Ensure extensions start with a dot
-        exts = {e.strip() if e.strip().startswith('.') else '.' + e.strip()
+        exts = {('.' + e.strip()) if not e.strip().startswith('.') else e.strip()
                 for e in args.exclude_exts.split(',') if e.strip()}
         excluded_extensions.update(exts)
+
+    gitignore_patterns = []
+    if not args.no_gitignore:
+        gitignore_path = os.path.join(args.directory, '.gitignore')
+        gitignore_patterns = parse_gitignore(gitignore_path)
+        # print(f"Debug: Found {len(gitignore_patterns)} patterns in .gitignore")
 
     target_dir = args.directory
     top_n = args.top
 
     if not os.path.isdir(target_dir):
-        print(f"Error: Directory not found: {target_dir}", file=sys.stderr)
+        print(f"{V} Error: Directory not found: {target_dir} {V}".ljust(width - 1) + V, file=sys.stderr)
+        print(f"{BL}{H * (width - 2)}{BR}", file=sys.stderr)
         sys.exit(1)
 
+    # --- Run Analysis --- 
     try:
-        print(f"Analyzing repository in {os.path.abspath(target_dir)}...")
-        print(f"Excluding Dirs: {sorted(list(excluded_dirs))}")
-        print(f"Excluding Exts: {sorted(list(excluded_extensions))}")
+        abs_target_dir = os.path.abspath(target_dir)
+        # Add emojis to info section
+        print(f"{V} 🔍 Analyzing: {abs_target_dir:<{width - 16}}{V}")
+        print(f"{V}   Ignoring .gitignore: {'Yes' if args.no_gitignore else 'No'}{V}".rjust(width - 1))
+        print(f"{LC}{H * (width - 2)}{RC}")
+
         total_files, total_lines, total_chars, file_details = count_files_and_lines(
-            target_dir, excluded_dirs, excluded_extensions, args.verbose
+            target_dir, excluded_dirs, excluded_extensions, gitignore_patterns, args.verbose
         )
 
-        # Display the general results
-        print(f"\nAnalysis Results:")
-        print(f"Total number of files analyzed: {total_files}")
-        print(f"Total number of lines of text: {total_lines}")
-        print(f"Total number of characters: {total_chars}")
+        # --- Display Results --- 
+        # Add emojis to results section
+        print(f"{V}📊 Analysis Results {V}".center(width))
+        print(f"{LC}{H * (width - 2)}{RC}")
+        results_line1 = f" 📄 Files Analyzed: {total_files}"
+        results_line2 = f" 📏 Total Lines: {total_lines}"
+        results_line3 = f" 🔠 Total Chars: {total_chars}"
+        print(f"{V}{results_line1:<{width - 2}}{V}")
+        print(f"{V}{results_line2:<{width - 2}}{V}")
+        print(f"{V}{results_line3:<{width - 2}}{V}")
+        print(f"{LC}{H * (width - 2)}{RC}")
 
-        # Display the largest files
-        display_largest_files(file_details, top_n=top_n)
+        display_largest_files(file_details, top_n=top_n, width=width)
+
+        print(f"{BL}{H * (width - 2)}{BR}") # Footer for the whole output
+        print() # Add newline after output
 
     except KeyboardInterrupt:
-        print("\n\nScan interrupted by user.", file=sys.stderr)
+        # Clear any leftover progress line
+        sys.stdout.write(f"\r{' ':<{width}}\r")
+        sys.stdout.flush()
+        # Add emoji to interrupt message
+        print(f"\n{V} 🛑 Scan interrupted by user. {V}".center(width + 1), file=sys.stderr)
+        print(f"{BL}{H * (width - 2)}{BR}", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
-        print(f"\n\nAn unexpected error occurred: {e}", file=sys.stderr)
+        # Clear any leftover progress line
+        sys.stdout.write(f"\r{' ':<{width}}\r")
+        sys.stdout.flush()
+        # Add emoji to error message
+        print(f"\n{V} ⚠️ An unexpected error occurred: {e} {V}".ljust(width -1) + V, file=sys.stderr)
+        print(f"{BL}{H * (width - 2)}{BR}", file=sys.stderr)
         sys.exit(1)
 
 if __name__ == "__main__":

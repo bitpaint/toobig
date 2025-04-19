@@ -1,29 +1,74 @@
 # 🚀 TooBig: Find Your Chunky Code Files 🚀
 
-Ever feel like your codebase is getting a bit... *chonky*? `toobig.py` is here to help you vibe check your project and spot those hefty **code files** that might need a little refactoring love. ✨
+[![Python 3.6+](https://img.shields.io/badge/python-3.6+-blue.svg)](https://www.python.org/downloads/release/python-360/)
 
-It intelligently scans your current directory (while skipping common non-code directories like `node_modules`, `.git`, `build`, etc., and ignoring binary files, images, archives, etc.), counts up the relevant text files, lines, and characters, and points out the biggest bois. Keep your code lean and mean! 💪
+Ever feel like your codebase is getting a bit... *chonky*? `toobig.py` is a lightweight, zero-dependency Python script to help you vibe check your project and spot those hefty **code files** that might need a little refactoring love. ✨
+
+It intelligently scans your directory, skipping common non-code directories (`node_modules`, `.git`, `build`, etc.) and file types (binaries, images, archives), counts up the relevant text files, lines, and characters, and points out the biggest offenders. Keep your code lean and mean! 💪
 
 ## 🤔 Why?
 
-Big source code files can be a drag. They're harder to read, harder to maintain, and just generally mess with the coding flow. `toobig.py` helps you identify potential candidates for splitting into smaller, more manageable pieces. Keep it modular, keep it cool. 😎
+Large source code files can be a drag. They're harder to read, harder to maintain, slower to process by tools, and can generally mess with the coding flow. `toobig.py` helps you quickly identify potential candidates for splitting into smaller, more manageable modules. Keep it modular, keep it cool. 😎
 
-## ✨ How to Use
+## ✨ Features
 
-It's super simple! Just curl the script directly from the repo and run it with Python in the root of your project directory:
+*   **Fast Scan:** Intelligently skips irrelevant directories and file types.
+*   **Zero Dependencies:** Runs anywhere with Python 3.6+ installed.
+*   **Configurable:** Use command-line arguments to customize behavior.
+*   **Clear Output:** Shows total counts and highlights the largest files by size (KB/MB).
+
+## 🚀 Quick Start
+
+No installation needed! Just pipe it directly from GitHub using `curl` in the root of your project directory:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/bitpaint/toobig/main/toobig.py | python3
 ```
 
-## 🧠 What it Skips
+This will scan the current directory (`.`) and show the top 5 largest files.
 
-To keep things fast and relevant, `toobig.py` skips:
+## ⚙️ Usage & Options
 
-*   **Common Directories:** `.git`, `node_modules`, `venv`, `__pycache__`, `build`, `dist`, `target`, `.vscode`, `.idea`, and more.
-*   **Non-Code Files:** Images (`.png`, `.jpg`...), archives (`.zip`, `.tar`...), binaries (`.exe`, `.dll`...), compiled code (`.pyc`, `.class`...), documents (`.pdf`, `.docx`...), media (`.mp4`, `.mp3`...), fonts, logs, and minified files (`.min.js`, `.min.css`).
+You can pass arguments directly after `python3 --` when using the `curl` method, or save the script and run it conventionally.
 
-This focuses the analysis on the files you're most likely to edit and refactor.
+```bash
+# Pipe arguments via curl
+curl -sSL .../toobig.py | python3 -- [options] [directory]
+
+# Or save and run
+python toobig.py [options] [directory]
+```
+
+**Available Options:**
+
+*   `directory`: The target directory to analyze (defaults to the current directory).
+*   `--top N`: Show the top `N` largest files (default: `5`).
+*   `--exclude-dirs PAT1,PAT2,...`: Comma-separated list of *additional* directory name patterns to exclude (e.g., `my_build_artifacts,temp*`). Uses simple `fnmatch` patterns.
+*   `--exclude-exts .ext1,.ext2,...`: Comma-separated list of *additional* file extensions to exclude (must include the leading dot, e.g., `.log,.tmp`).
+*   `-v`, `--verbose`: Show potentially binary/unreadable files that are skipped during the scan.
+*   `-h`, `--help`: Show the help message and exit.
+
+**Examples:**
+
+```bash
+# Scan './src' directory, show top 10 files
+curl -sSL .../toobig.py | python3 -- --top 10 ./src
+
+# Scan current dir, exclude logs and temp files, show skipped files
+curl -sSL .../toobig.py | python3 -- --exclude-exts .log,.tmp -v
+
+# Scan current dir, also exclude any 'cache' directories
+curl -sSL .../toobig.py | python3 -- --exclude-dirs cache
+```
+
+## 🧠 What it Skips By Default
+
+To keep things fast and relevant, `toobig.py` automatically skips:
+
+*   **Common Directories:** `.git`, `node_modules`, `venv`, `__pycache__`, `build`, `dist`, `target`, `.vscode`, `.idea`, `vendor`, `*.egg-info`, `.terraform`, and more.
+*   **Non-Code File Extensions:** Images (`.png`, `.jpg`...), archives (`.zip`, `.tar`, `.gz`...), binaries (`.exe`, `.dll`, `.so`...), compiled code (`.pyc`, `.class`...), documents (`.pdf`, `.docx`...), media (`.mp4`, `.mp3`...), fonts, logs (`.log`), lock files (`.lock`), minified files (`.min.js`, `.min.css`), etc.
+
+This focuses the analysis on the text-based files you're most likely to edit and refactor.
 
 ## 📊 Example Output
 
@@ -31,11 +76,14 @@ Running the script will give you something like this:
 
 ```plaintext
 Analyzing repository in /path/to/your/project...
-Scanning: /path/to/your/project/some/sub/directory        
+Excluding Dirs: ['.env', '.git', ..., 'vendor']
+Excluding Exts: ['.7z', '.a', ..., '.zip']
+Scanning: src/components                                          
+
 Analysis Results:
-Total number of files analyzed: 157
-Total number of lines of text: 25890
-Total number of characters: 987654
+Total number of files analyzed: 142
+Total number of lines of text: 24510
+Total number of characters: 910234
 
 Top 5 Largest Files:
 ------------------------------------------------------------
@@ -60,10 +108,10 @@ Lines: 500
 Characters: 77250
 ------------------------------------------------------------
 #5 docs/massive_spec.md
-Size: 60.91 KB
-Lines: 1500
-Characters: 62380
+Size: 1.15 MB
+Lines: 15000
+Characters: 1200500
 ------------------------------------------------------------
 ```
 
-Now go forth and refactor! ✂️ 
+Now go forth and refactor! ✂️
